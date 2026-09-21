@@ -1,0 +1,194 @@
+openapi: 3.0.3
+info:
+  title: REQ-001 增量接口契约 (Delta API Specification)
+  description: 时空足迹大盘与地理标记增量接口 (采用两阶段加载与 WGS-84 规范)
+  version: 1.0.0
+paths:
+  /api/manage/footprint:
+    get:
+      summary: 阶段一：足迹大盘轻量散点列表拉取 (Stage 1 Lightweight Telemetry)
+      description: 仅拉取地图打点与聚合所需的极轻量遥测数据，不携带长篇游记文本，确保毫秒级极速渲染。
+      security:
+        - AdminAuth: []
+      parameters:
+        - name: dir
+          in: query
+          description: 相册目录筛选 (如 /travel/)
+          required: false
+          schema:
+            type: string
+        - name: includeTags
+          in: query
+          description: 多标签过滤 (逗号分隔，如 Landscape,Architecture)
+          required: false
+          schema:
+            type: string
+        - name: startTime
+          in: query
+          description: 开始时间戳
+          required: false
+          schema:
+            type: integer
+        - name: endTime
+          in: query
+          description: 结束时间戳
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 轻量点位数组
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        lat:
+                          type: number
+                          description: 纬度 (WGS-84)
+                        lng:
+                          type: number
+                          description: 经度 (WGS-84)
+                        name:
+                          type: string
+                          description: 地点名称
+                        dir:
+                          type: string
+                        date:
+                          type: integer
+                          description: 拍摄/上传时间戳
+                        tags:
+                          type: array
+                          items:
+                            type: string
+
+  /api/manage/footprint/detail:
+    get:
+      summary: 阶段二：点位照片详情与游记故事按需拉取 (Stage 2 Detail & Story On-Demand)
+      description: 当用户在地图上点击图钉或聚合球展开抽屉时，按需拉取指定照片的完整故事与高清缩略图。
+      security:
+        - AdminAuth: []
+      parameters:
+        - name: id
+          in: query
+          description: 照片唯一 ID (支持逗号分隔多个 ID)
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 照片详细信息列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        fileName:
+                          type: string
+                        thumbUrl:
+                          type: string
+                          description: 缩略图地址 (带 width=400 参数)
+                        rawUrl:
+                          type: string
+                          description: 原图查看地址
+                        latitude:
+                          type: number
+                        longitude:
+                          type: number
+                        locationName:
+                          type: string
+                        description:
+                          type: string
+                          description: 长篇游记或简短留念文本
+                        timestamp:
+                          type: integer
+                        tags:
+                          type: array
+                          items:
+                            type: string
+
+  /api/manage/metadata/geo:
+    post:
+      summary: 照片地图打卡与图文故事保存
+      description: 供后台详情弹窗使用，原子化更新指定照片的经纬度、地点名称与游记故事。
+      security:
+        - AdminAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - id
+              properties:
+                id:
+                  type: string
+                latitude:
+                  type: number
+                  nullable: true
+                  description: 纬度 (WGS-84，空表示清除定位)
+                longitude:
+                  type: number
+                  nullable: true
+                  description: 经度 (WGS-84，空表示清除定位)
+                locationName:
+                  type: string
+                  nullable: true
+                  description: 地点名称
+                description:
+                  type: string
+                  nullable: true
+                  description: 游记故事与文字留念
+      responses:
+        '200':
+          description: 保存成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  /atlas:
+    get:
+      summary: 独立时空足迹大盘页面入口 (带边缘鉴权守卫)
+      description: 边缘函数拦截，未登录则 302 重定向至登录页，已登录则输出极简大盘 HTML。
+      responses:
+        '200':
+          description: 渲染大盘 HTML
+          content:
+            text/html:
+              schema:
+                type: string
+        '302':
+          description: 未登录重定向至 /
+components:
+  securitySchemes:
+    AdminAuth:
+      type: apiKey
+      in: header
+      name: Authorization

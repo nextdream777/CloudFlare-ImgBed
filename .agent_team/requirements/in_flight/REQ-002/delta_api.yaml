@@ -1,0 +1,172 @@
+openapi: 3.0.3
+info:
+  title: CloudFlare-ImgBed REQ-002 Delta API Specification
+  version: 2.9.0
+  description: 增量 API 契约：多图志管理 (Atlas CRUD)、全局标签治理 (Tag Governance) 与底图设置扩展
+
+paths:
+  /api/manage/atlas/list:
+    get:
+      summary: 获取所有图志列表及点位统计
+      security:
+        - AdminAuth: []
+      responses:
+        '200':
+          description: 成功返回图志列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AtlasSummary'
+
+  /api/manage/atlas:
+    post:
+      summary: 创建或更新图志
+      security:
+        - AdminAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AtlasPayload'
+      responses:
+        '200':
+          description: 保存成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  id:
+                    type: string
+
+    delete:
+      summary: 删除指定图志
+      security:
+        - AdminAuth: []
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 删除成功
+
+  /api/manage/tags/governance:
+    get:
+      summary: 获取全局标签列表与引用计数
+      security:
+        - AdminAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        tag:
+                          type: string
+                        count:
+                          type: integer
+    post:
+      summary: 标签重命名、合并或批量删除
+      security:
+        - AdminAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - action
+              properties:
+                action:
+                  type: string
+                  enum: [rename, merge, delete]
+                sourceTags:
+                  type: array
+                  items:
+                    type: string
+                targetTag:
+                  type: string
+      responses:
+        '200':
+          description: 治理操作执行成功
+
+components:
+  schemas:
+    AtlasSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        coverFileId:
+          type: string
+        coverUrl:
+          type: string
+        geotaggedCount:
+          type: integer
+        queryRules:
+          type: object
+        sortOrder:
+          type: integer
+        createdAt:
+          type: string
+
+    AtlasPayload:
+      type: object
+      required:
+        - name
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        coverFileId:
+          type: string
+        queryRules:
+          type: object
+          properties:
+            directories:
+              type: array
+              items:
+                type: string
+            tags:
+              type: array
+              items:
+                type: string
+        includedFileIds:
+          type: array
+          items:
+            type: string
+        excludedFileIds:
+          type: array
+          items:
+            type: string
+        sortOrder:
+          type: integer

@@ -1,0 +1,248 @@
+openapi: 3.0.3
+info:
+  title: CloudFlare-ImgBed Mainline API Specification
+  description: 生产级主干生效 API 契约全貌 (2PC 受控，禁止直接修改)
+  version: 2.7.6
+servers:
+  - url: /
+    description: Current Serverless / Docker Base URL
+paths:
+  /upload:
+    post:
+      summary: 文件上传端点
+      description: 上传文件至指定存储渠道
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                channel:
+                  type: string
+                  description: 目标存储渠道 (telegram, r2, s3, etc.)
+                directory:
+                  type: string
+                  description: 归属目录路径
+      responses:
+        '200':
+          description: 上传成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      url:
+                        type: string
+                  msg:
+                    type: string
+  /file/{id}:
+    get:
+      summary: 文件分发与访问代理
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 文件流响应
+        '404':
+          description: 文件不存在
+  /api/manage/list:
+    get:
+      summary: 文件分页列表查询
+      security:
+        - AdminAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: directory
+          in: query
+          schema:
+            type: string
+        - name: channel
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 文件列表
+  /api/manage/atlas:
+    get:
+      summary: 获取所有图志列表
+      security:
+        - AdminAuth: []
+      responses:
+        '200':
+          description: 图志列表及基础统计
+    post:
+      summary: 创建或更新图志
+      security:
+        - AdminAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type: string
+                rules:
+                  type: object
+                cover_url:
+                  type: string
+      responses:
+        '200':
+          description: 操作成功
+  /api/manage/atlas/{id}:
+    get:
+      summary: 获取图志详情与收录明细
+      security:
+        - AdminAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 图志详情
+    delete:
+      summary: 删除图志
+      security:
+        - AdminAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 删除成功
+  /api/manage/tags/governance:
+    get:
+      summary: 全系统标签概览与空间分布统计
+      security:
+        - AdminAuth: []
+      responses:
+        '200':
+          description: 标签列表及坐标覆盖统计
+    post:
+      summary: 标签治理动作 (重命名/合并/清理死标签)
+      security:
+        - AdminAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [merge, delete, clean_dead]
+                sourceTag:
+                  type: string
+                targetTag:
+                  type: string
+                tag:
+                  type: string
+      responses:
+        '200':
+          description: 治理完成
+  /api/manage/footprint:
+    get:
+      summary: 足迹图卷空间数据检索
+      security:
+        - AdminAuth: []
+      parameters:
+        - name: atlasId
+          in: query
+          schema:
+            type: string
+        - name: directory
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 空间足迹散点集合
+    post:
+      summary: 更新照片空间坐标与游记故事
+      security:
+        - AdminAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+                location_name:
+                  type: string
+                story_description:
+                  type: string
+      responses:
+        '200':
+          description: 更新成功
+  /api/auth/login:
+    post:
+      summary: 管理员登录认证
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+      responses:
+        '200':
+          description: 认证成功
+        '401':
+          description: 密码错误
+components:
+  securitySchemes:
+    AdminAuth:
+      type: apiKey
+      in: header
+      name: Authorization

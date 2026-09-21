@@ -26,10 +26,12 @@ D1Database.prototype.putFile = function(fileId, value, options) {
         'id, value, metadata, file_name, file_type, file_size, ' +
         'upload_ip, upload_address, list_type, timestamp, ' +
         'label, directory, channel, channel_name, ' +
-        'tg_file_id, tg_chat_id, tg_bot_token, is_chunked' +
-        ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        'tg_file_id, tg_chat_id, tg_bot_token, is_chunked, ' +
+        'tags, latitude, longitude, location_name, description' +
+        ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
     
+    var self = this;
     return stmt.bind(
         fileId,
         value,
@@ -48,8 +50,43 @@ D1Database.prototype.putFile = function(fileId, value, options) {
         extractedFields.tgFileId,
         extractedFields.tgChatId,
         extractedFields.tgBotToken,
-        extractedFields.isChunked
-    ).run();
+        extractedFields.isChunked,
+        extractedFields.tags,
+        extractedFields.latitude,
+        extractedFields.longitude,
+        extractedFields.locationName,
+        extractedFields.description
+    ).run().catch(function(err) {
+        // Fallback for older table schema without geo columns
+        var legacyStmt = self.db.prepare(
+            'INSERT OR REPLACE INTO files (' +
+            'id, value, metadata, file_name, file_type, file_size, ' +
+            'upload_ip, upload_address, list_type, timestamp, ' +
+            'label, directory, channel, channel_name, ' +
+            'tg_file_id, tg_chat_id, tg_bot_token, is_chunked' +
+            ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        return legacyStmt.bind(
+            fileId,
+            value,
+            JSON.stringify(metadata),
+            extractedFields.fileName,
+            extractedFields.fileType,
+            extractedFields.fileSize,
+            extractedFields.uploadIP,
+            extractedFields.uploadAddress,
+            extractedFields.listType,
+            extractedFields.timestamp,
+            extractedFields.label,
+            extractedFields.directory,
+            extractedFields.channel,
+            extractedFields.channelName,
+            extractedFields.tgFileId,
+            extractedFields.tgChatId,
+            extractedFields.tgBotToken,
+            extractedFields.isChunked
+        ).run();
+    });
 };
 
 /**
@@ -306,7 +343,12 @@ D1Database.prototype.extractMetadataFields = function(metadata) {
         tgFileId: metadata.TgFileId || null,
         tgChatId: null,
         tgBotToken: null,
-        isChunked: metadata.IsChunked || false
+        isChunked: metadata.IsChunked || false,
+        tags: Array.isArray(metadata.Tags) ? JSON.stringify(metadata.Tags) : (typeof metadata.Tags === 'string' ? metadata.Tags : null),
+        latitude: metadata.Latitude !== undefined && metadata.Latitude !== null ? Number(metadata.Latitude) : (metadata.latitude !== undefined && metadata.latitude !== null ? Number(metadata.latitude) : null),
+        longitude: metadata.Longitude !== undefined && metadata.Longitude !== null ? Number(metadata.Longitude) : (metadata.longitude !== undefined && metadata.longitude !== null ? Number(metadata.longitude) : null),
+        locationName: metadata.LocationName || metadata.location_name || null,
+        description: metadata.Description || metadata.description || null
     };
 };
 
@@ -404,5 +446,100 @@ D1Database.prototype.list = function(options) {
     }
 };
 
+// ==================== 图志操作 (Atlases - REQ-002) ====================
+
+/**
+ * 列出所有图志
+ */
+D1Database.prototype.listAtlases = function() {
+    var stmt = this.db.prepare(
+        'SELECT a.*, ' +
+        '(SELECT COUNT(1) FROM files f WHERE f.latitude IS NOT NULL AND f.longitude IS NOT NULL) as total_geotagged ' +
+        'FROM atlases a ORDER BY a.sort_order ASC, a.created_at DESC'
+    );
+    return stmt.all().then(function(res) {
+        return res.results || [];
+    }).catch(function(err) {
+        return [];
+    });
+};
+
+/**
+ * 获取单个图志详情
+ */
+D1Database.prototype.getAtlas = function(id) {
+    var stmt = this.db.prepare('SELECT * FROM atlases WHERE id = ?');
+    return stmt.bind(id).first().then(function(atlas) {
+        if (!atlas) return null;
+        return atlas;
+    }).catch(function() {
+        return null;
+    });
+};
+
+/**
+ * 保存/更新图志
+ */
+D1Database.prototype.putAtlas = function(atlas) {
+    var stmt = this.db.prepare(
+        'INSERT OR REPLACE INTO atlases (id, name, description, cover_file_id, query_rules, sort_order, is_public, updated_at) ' +
+        'VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)'
+    );
+    return stmt.bind(
+        atlas.id,
+        atlas.name,
+        atlas.description || null,
+        atlas.cover_file_id || null,
+        typeof atlas.query_rules === 'object' ? JSON.stringify(atlas.query_rules) : (atlas.query_rules || '{}'),
+        atlas.sort_order || 0,
+        atlas.is_public ? 1 : 0
+    ).run();
+};
+
+/**
+ * 删除图志及级联关系
+ */
+D1Database.prototype.deleteAtlas = function(id) {
+    var self = this;
+    return this.db.prepare('DELETE FROM atlases WHERE id = ?').bind(id).run().then(function() {
+        return self.db.prepare('DELETE FROM atlas_items WHERE atlas_id = ?').bind(id).run().catch(function() {});
+    });
+};
+
+/**
+ * 获取图志显式关联项
+ */
+D1Database.prototype.getAtlasItems = function(atlasId) {
+    var stmt = this.db.prepare('SELECT * FROM atlas_items WHERE atlas_id = ?');
+    return stmt.bind(atlasId).all().then(function(res) {
+        return res.results || [];
+    }).catch(function() {
+        return [];
+    });
+};
+
+/**
+ * 设置图志显式包含/排除项
+ */
+D1Database.prototype.setAtlasItems = function(atlasId, includedFileIds, excludedFileIds) {
+    var self = this;
+    includedFileIds = Array.isArray(includedFileIds) ? includedFileIds : [];
+    excludedFileIds = Array.isArray(excludedFileIds) ? excludedFileIds : [];
+
+    return this.db.prepare('DELETE FROM atlas_items WHERE atlas_id = ?').bind(atlasId).run().catch(function() {}).then(function() {
+        var statements = [];
+        includedFileIds.forEach(function(fid) {
+            statements.push(self.db.prepare('INSERT INTO atlas_items (atlas_id, file_id, relation_type) VALUES (?, ?, ?)').bind(atlasId, fid, 'include'));
+        });
+        excludedFileIds.forEach(function(fid) {
+            statements.push(self.db.prepare('INSERT INTO atlas_items (atlas_id, file_id, relation_type) VALUES (?, ?, ?)').bind(atlasId, fid, 'exclude'));
+        });
+        if (statements.length > 0) {
+            return self.db.batch(statements);
+        }
+    });
+};
+
 // 导出构造函数
 export { D1Database };
+

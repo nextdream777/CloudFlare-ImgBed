@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Travel Map Atlas - REQ-001 High-Fidelity Prototype</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    /* Custom Leaflet Map & Glassmorphism Styling */
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      box-shadow: 0 10px 30px -4px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
+    }
+    .custom-cluster-blue {
+      background: rgba(59, 130, 246, 0.2);
+      border: 3px solid rgba(59, 130, 246, 0.8);
+      color: #1E3A8A;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .custom-cluster-blue:hover {
+      transform: scale(1.1);
+    }
+    .custom-cluster-green {
+      background: rgba(34, 197, 94, 0.2);
+      border: 3px solid rgba(34, 197, 94, 0.8);
+      color: #14532D;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .custom-cluster-green:hover {
+      transform: scale(1.1);
+    }
+    .custom-pin {
+      background: #0F172A;
+      color: #FFFFFF;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .custom-pin:hover {
+      transform: scale(1.2);
+      background: #2563EB;
+    }
+    /* Smooth drawer transition */
+    #story-drawer {
+      transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease-out;
+    }
+    #story-drawer.closed {
+      transform: translateX(110%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    /* Modal transition */
+    #edit-modal {
+      transition: opacity 0.25s ease-out;
+    }
+    #edit-modal.hidden-modal {
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 h-screen w-screen overflow-hidden flex flex-col font-sans antialiased select-none">
+
+  <!-- Fullscreen Interactive Map Container -->
+  <div id="map" class="h-full w-full absolute inset-0 z-0"></div>
+
+  <!-- Top Floating Navigation Island -->
+  <header class="absolute top-5 left-1/2 -translate-x-1/2 z-20 w-11/12 max-w-5xl">
+    <div class="glass-panel rounded-2xl px-5 py-3 flex items-center justify-between gap-4">
+      
+      <!-- Brand & Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-base shadow-sm">
+          A
+        </div>
+        <span class="font-semibold text-slate-800 text-base tracking-tight hidden sm:inline">Travel Map Atlas</span>
+      </div>
+
+      <!-- Directory Dropdown Selector -->
+      <div class="relative">
+        <select id="dir-select" class="appearance-none bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-xs sm:text-sm font-medium py-1.5 pl-3 pr-8 rounded-xl border border-slate-200/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer transition">
+          <option value="all">Directory: All Footprints</option>
+          <option value="vacation">Directory: Vacation 2023</option>
+          <option value="xinjiang">Directory: Xinjiang 2026</option>
+          <option value="street">Directory: City Walk</option>
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+      </div>
+
+      <!-- Clean Pure-Text Tag Filter Pills (Zero Emojis) -->
+      <div class="hidden md:flex items-center gap-1.5 overflow-x-auto py-0.5">
+        <button onclick="filterTag('all')" class="tag-btn active px-3 py-1 rounded-lg text-xs font-medium bg-slate-900 text-white transition">All</button>
+        <button onclick="filterTag('landscape')" class="tag-btn px-3 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 transition">Landscape</button>
+        <button onclick="filterTag('architecture')" class="tag-btn px-3 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 transition">Architecture</button>
+        <button onclick="filterTag('culinary')" class="tag-btn px-3 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 transition">Culinary</button>
+        <button onclick="filterTag('street')" class="tag-btn px-3 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 transition">Street</button>
+      </div>
+
+      <!-- Right Metric Counter & Add Pin Action -->
+      <div class="flex items-center gap-2">
+        <div class="hidden lg:flex items-center gap-1.5 px-3 py-1 bg-slate-100/80 rounded-xl text-xs font-medium text-slate-600">
+          <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <span id="metric-counter">128 Footprints · 356 Photos</span>
+        </div>
+        <!-- Trigger Modal Button -->
+        <button onclick="openEditModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-xl shadow-sm hover:shadow transition flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <span>打卡选点</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Right Slide-Out Photo & Story Drawer (420px) -->
+  <aside id="story-drawer" class="glass-panel absolute right-6 top-24 bottom-6 z-20 w-full max-w-[420px] rounded-3xl p-6 flex flex-col closed shadow-2xl overflow-hidden">
+    
+    <!-- Drawer Header -->
+    <div class="flex items-start justify-between pb-4 border-b border-slate-100">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span id="drawer-date" class="px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-semibold tracking-wide">22 Oct 2023</span>
+          <span id="drawer-category" class="text-xs text-blue-600 font-medium">Vacation 2023</span>
+        </div>
+        <h2 id="drawer-title" class="text-xl font-bold text-slate-900 tracking-tight">Hangzhou West Lake</h2>
+      </div>
+      <button onclick="closeDrawer()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- Scrollable Content Area -->
+    <div class="flex-1 overflow-y-auto pr-1 mt-4 space-y-5">
+      
+      <!-- 2x2 Photo Gallery Grid -->
+      <div id="drawer-gallery" class="grid grid-cols-2 gap-2.5">
+        <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=400&q=80" alt="photo" class="rounded-xl w-full h-28 object-cover shadow-sm hover:opacity-90 transition cursor-pointer">
+        <img src="https://images.unsplash.com/photo-1511497584788-87676104235f?w=400&q=80" alt="photo" class="rounded-xl w-full h-28 object-cover shadow-sm hover:opacity-90 transition cursor-pointer">
+        <img src="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400&q=80" alt="photo" class="rounded-xl w-full h-28 object-cover shadow-sm hover:opacity-90 transition cursor-pointer">
+        <img src="https://images.unsplash.com/photo-1426604966848-d7adac402bff?w=400&q=80" alt="photo" class="rounded-xl w-full h-28 object-cover shadow-sm hover:opacity-90 transition cursor-pointer">
+      </div>
+
+      <!-- Narrative Story Section -->
+      <div class="space-y-2">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Travel Story & Memo</h3>
+        <p id="drawer-story" class="text-sm text-slate-600 leading-relaxed font-normal">
+          秋意渐浓的西湖边，漫步在苏堤上，微风拂过水面激起阵阵涟漪。远处的雷峰塔在落日余晖中更显静谧，偶有一两只游船缓缓划过湖面。将这一刻的光影定格，留存下这片刻的宁静与美好。
+        </p>
+      </div>
+
+      <!-- Metadata & Telemetry Box -->
+      <div class="bg-slate-50/80 rounded-2xl p-4 border border-slate-100 text-xs text-slate-500 space-y-1.5 font-mono">
+        <div class="flex justify-between">
+          <span>COORDINATES:</span>
+          <span id="drawer-coords" class="text-slate-800 font-medium">30.2452° N, 120.1425° E</span>
+        </div>
+        <div class="flex justify-between">
+          <span>PHOTOS COUNT:</span>
+          <span class="text-slate-800 font-medium">4 Photos</span>
+        </div>
+        <div class="flex justify-between">
+          <span>TAGS:</span>
+          <span class="text-blue-600 font-medium">#Landscape #WestLake</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Drawer Footer Actions -->
+    <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+      <button onclick="alert('进入大图沉浸模式')" class="text-xs font-medium text-slate-600 hover:text-blue-600 transition flex items-center gap-1">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+        全屏看图
+      </button>
+      <button onclick="openEditModal()" class="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-medium shadow-sm transition">
+        编辑打卡与故事
+      </button>
+    </div>
+
+  </aside>
+
+  <!-- Photo Geo & Story Edit Modal (720px) -->
+  <div id="edit-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 hidden-modal">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden flex flex-col">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+          </div>
+          <h3 class="font-bold text-slate-800 text-base">地图选点打卡与故事编辑</h3>
+        </div>
+        <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Modal Body (Split Layout: Mini-map Picker + Form) -->
+      <div class="p-6 space-y-4">
+        
+        <!-- Interactive Map Picker (Click to Pin) -->
+        <div class="relative rounded-2xl overflow-hidden border border-slate-200 h-52 w-full">
+          <div id="picker-map" class="h-full w-full"></div>
+          <div class="absolute bottom-2 left-2 z-[400] bg-white/90 backdrop-blur px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-700 shadow-sm border border-slate-100">
+            提示：在地图上点击任意位置即可落图钉打卡
+          </div>
+        </div>
+
+        <!-- Coordinates & Location Input -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">地点名称 (可自动推测或手填)</label>
+            <input id="modal-location" type="text" placeholder="例如：浙江省·杭州市·西湖苏堤" class="w-full text-xs sm:text-sm px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-xs font-semibold text-slate-500">经纬度坐标 (自动抓取)</label>
+              <button onclick="clearCoords()" class="text-[11px] text-red-500 hover:underline">清除定位</button>
+            </div>
+            <input id="modal-coords" type="text" readonly placeholder="点击上方地图拾取坐标" class="w-full text-xs sm:text-sm px-3.5 py-2 rounded-xl bg-slate-100 font-mono text-slate-700 border border-slate-200 focus:outline-none">
+          </div>
+        </div>
+
+        <!-- Story Description Textarea -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">图文故事 / 旅行留念 (支持长篇游记)</label>
+          <textarea id="modal-story" rows="3" placeholder="写下关于这张照片的旅行回忆、光影瞬间或心情故事..." class="w-full text-xs sm:text-sm p-3.5 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition resize-none"></textarea>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+        <button onclick="closeEditModal()" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-200/60 transition">取消</button>
+        <button onclick="saveEditModal()" class="px-5 py-2 rounded-xl text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition">保存打卡信息</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Prototype Logic Script -->
+  <script>
+    // 1. Initialize Main Map with Pastel Light Tiles
+    const map = L.map('map', {
+      zoomControl: false
+    }).setView([32.0, 110.0], 5);
+
+    // CartoDB Positron (Pastel clean light tiles, zero local storage, no key required)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+
+    // Re-position Zoom Control to bottom-left
+    L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+    // 2. Demo Footprint Data
+    const footprints = [
+      {
+        id: 'hangzhou',
+        lat: 30.2452,
+        lng: 120.1425,
+        title: 'Hangzhou West Lake',
+        category: 'Vacation 2023',
+        date: '22 Oct 2023',
+        tag: 'landscape',
+        story: '秋意渐浓的西湖边，漫步在苏堤上，微风拂过水面激起阵阵涟漪。远处的雷峰塔在落日余晖中更显静谧，偶有一两只游船缓缓划过湖面。'
+      },
+      {
+        id: 'xinjiang',
+        lat: 44.9754,
+        lng: 81.1643,
+        title: 'Sayram Lake, Xinjiang',
+        category: 'Xinjiang 2026',
+        date: '15 Jul 2026',
+        tag: 'landscape',
+        story: '大西洋的最后一滴眼泪。湛蓝如宝石的湖水与远处的雪山连成一线，草原上野花盛开，美得让人屏息。'
+      },
+      {
+        id: 'beijing',
+        lat: 39.9163,
+        lng: 116.3972,
+        title: 'Forbidden City, Beijing',
+        category: 'City Walk',
+        date: '04 May 2023',
+        tag: 'architecture',
+        story: '红墙金瓦下的紫禁城，几百年的沧桑历史在阳光下拉出长长的阴影。站在太和殿广场，感受宏大与庄严。'
+      }
+    ];
+
+    // 3. Add Custom Cluster & Pin Markers
+    const markers = [];
+
+    // Cluster Badge 1 (Simulated Cluster)
+    const clusterIcon1 = L.divIcon({
+      className: 'custom-cluster-blue',
+      html: '48',
+      iconSize: [46, 46]
+    });
+    const cluster1 = L.marker([36.7783, -119.4179], { icon: clusterIcon1 }).addTo(map);
+    cluster1.on('click', () => {
+      map.setView([36.7783, -119.4179], 8);
+    });
+
+    // Cluster Badge 2
+    const clusterIcon2 = L.divIcon({
+      className: 'custom-cluster-green',
+      html: '12',
+      iconSize: [42, 42]
+    });
+    const cluster2 = L.marker([38.9072, -77.0369], { icon: clusterIcon2 }).addTo(map);
+
+    // Single Photo Pins
+    footprints.forEach(fp => {
+      const pinIcon = L.divIcon({
+        className: 'custom-pin',
+        html: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`,
+        iconSize: [32, 32]
+      });
+      const marker = L.marker([fp.lat, fp.lng], { icon: pinIcon }).addTo(map);
+      marker.on('click', () => openDrawer(fp));
+      markers.push({ marker, data: fp });
+    });
+
+    // 4. Drawer Control
+    const drawer = document.getElementById('story-drawer');
+    function openDrawer(data) {
+      document.getElementById('drawer-title').innerText = data.title;
+      document.getElementById('drawer-date').innerText = data.date;
+      document.getElementById('drawer-category').innerText = data.category;
+      document.getElementById('drawer-story').innerText = data.story;
+      document.getElementById('drawer-coords').innerText = `${data.lat.toFixed(4)}° N, ${data.lng.toFixed(4)}° E`;
+      drawer.classList.remove('closed');
+    }
+    function closeDrawer() {
+      drawer.classList.add('closed');
+    }
+
+    // 5. Tag Filter Logic
+    function filterTag(tag) {
+      document.querySelectorAll('.tag-btn').forEach(btn => {
+        btn.classList.remove('bg-slate-900', 'text-white');
+        btn.classList.add('bg-slate-100', 'text-slate-600');
+      });
+      event.target.classList.remove('bg-slate-100', 'text-slate-600');
+      event.target.classList.add('bg-slate-900', 'text-white');
+
+      markers.forEach(item => {
+        if (tag === 'all' || item.data.tag === tag) {
+          map.addLayer(item.marker);
+        } else {
+          map.removeLayer(item.marker);
+        }
+      });
+    }
+
+    // 6. Mini Picker Map in Modal
+    let pickerMap = null;
+    let pickerPin = null;
+
+    function openEditModal() {
+      document.getElementById('edit-modal').classList.remove('hidden-modal');
+      if (!pickerMap) {
+        setTimeout(() => {
+          pickerMap = L.map('picker-map', { zoomControl: false }).setView([30.2452, 120.1425], 11);
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(pickerMap);
+          
+          pickerMap.on('click', function(e) {
+            const lat = e.latlng.lat.toFixed(4);
+            const lng = e.latlng.lng.toFixed(4);
+            document.getElementById('modal-coords').value = `${lat}, ${lng}`;
+            
+            if (pickerPin) {
+              pickerPin.setLatLng(e.latlng);
+            } else {
+              pickerPin = L.marker(e.latlng).addTo(pickerMap);
+            }
+
+            // Simulated reverse geocoding
+            document.getElementById('modal-location').value = "浙江省·杭州市·西湖区 (自动推测)";
+          });
+        }, 100);
+      }
+    }
+
+    function closeEditModal() {
+      document.getElementById('edit-modal').classList.add('hidden-modal');
+    }
+
+    function clearCoords() {
+      document.getElementById('modal-coords').value = "";
+      document.getElementById('modal-location').value = "";
+      if (pickerPin && pickerMap) {
+        pickerMap.removeLayer(pickerPin);
+        pickerPin = null;
+      }
+    }
+
+    function saveEditModal() {
+      alert("保存成功！经纬度与游记故事已同步至 D1 数据库。");
+      closeEditModal();
+    }
+  </script>
+</body>
+</html>

@@ -186,6 +186,25 @@ async function processFileUpload(context, formdata = null) {
         metadata.Height = imageDimensions.height;
     }
 
+    // 提取地理信息与游记故事 (若上传表单中有传递)
+    const reqLat = formdata.get('latitude');
+    const reqLng = formdata.get('longitude');
+    const reqLoc = formdata.get('locationName') || formdata.get('location_name');
+    const reqDesc = formdata.get('description');
+
+    if (reqLat !== null && reqLat !== undefined && !isNaN(parseFloat(reqLat))) {
+        metadata.Latitude = parseFloat(reqLat);
+    }
+    if (reqLng !== null && reqLng !== undefined && !isNaN(parseFloat(reqLng))) {
+        metadata.Longitude = parseFloat(reqLng);
+    }
+    if (reqLoc) {
+        metadata.LocationName = String(reqLoc).trim();
+    }
+    if (reqDesc) {
+        metadata.Description = String(reqDesc).trim();
+    }
+
     const fileExt = resolveFileExt(fileName, fileType);
 
     // 构建文件ID

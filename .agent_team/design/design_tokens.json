@@ -1,0 +1,74 @@
+{
+  "color": {
+    "background": {
+      "canvas": "#F8FAFC",
+      "surface": "#FFFFFF",
+      "surfaceSubtle": "#F1F5F9",
+      "glass": "rgba(255, 255, 255, 0.82)",
+      "glassBorder": "rgba(226, 232, 240, 0.8)",
+      "overlay": "rgba(15, 23, 42, 0.45)"
+    },
+    "text": {
+      "primary": "#0F172A",
+      "secondary": "#475569",
+      "muted": "#94A3B8",
+      "inverse": "#FFFFFF"
+    },
+    "brand": {
+      "primary": "#2563EB",
+      "primaryHover": "#1D4ED8",
+      "primarySubtle": "#EFF6FF"
+    },
+    "map": {
+      "ocean": "#E0F2FE",
+      "land": "#F8FAF8",
+      "clusterBlue": "rgba(59, 130, 246, 0.85)",
+      "clusterGreen": "rgba(34, 197, 94, 0.85)",
+      "clusterAmber": "rgba(245, 158, 11, 0.85)",
+      "pinBackground": "#0F172A",
+      "pinIcon": "#FFFFFF"
+    },
+    "border": {
+      "subtle": "#E2E8F0",
+      "default": "#CBD5E1",
+      "focus": "#3B82F6"
+    }
+  },
+  "typography": {
+    "fontFamily": {
+      "sans": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+      "serif": "Georgia, Cambria, 'Times New Roman', serif",
+      "mono": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+    },
+    "fontSize": {
+      "xs": "0.75rem",
+      "sm": "0.875rem",
+      "base": "1rem",
+      "lg": "1.125rem",
+      "xl": "1.25rem",
+      "2xl": "1.5rem"
+    },
+    "lineHeight": {
+      "tight": "1.25",
+      "normal": "1.5",
+      "relaxed": "1.75"
+    }
+  },
+  "radius": {
+    "sm": "0.375rem",
+    "md": "0.5rem",
+    "lg": "0.75rem",
+    "xl": "1rem",
+    "full": "9999px"
+  },
+  "shadow": {
+    "card": "0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04)",
+    "floating": "0 10px 30px -4px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.04)",
+    "modal": "0 25px 50px -12px rgba(15, 23, 42, 0.25)"
+  },
+  "transition": {
+    "fast": "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+    "normal": "250ms cubic-bezier(0.16, 1, 0.3, 1)",
+    "drawer": "320ms cubic-bezier(0.16, 1, 0.3, 1)"
+  }
+}
