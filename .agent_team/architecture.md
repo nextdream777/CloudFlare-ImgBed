@@ -79,3 +79,16 @@ CloudFlare-ImgBed/
   ```bash
   npm run deploy:worker
   ```
+
+---
+
+## 5. 分支策略与持续交付规范 (Branch Strategy & CD SOP)
+
+* **主开发分支**: `dev` (日常需求研发、合流与联调均在 `dev` 分支进行)
+* **发布分支**: `main` (CloudFlare-ImgBed) / `master` (Sanyue-ImgHub)
+* **审阅后自动交付 SOP (Review-to-Dev Pipeline)**:
+  - 每次需求经总架构师审阅完成（Stage 08 通过）并执行 2PC 事务提交（Stage 09）时：
+    1. 自动为 `CloudFlare-ImgBed` 与 `Sanyue-ImgHub` 检出并切换至 `dev` 分支；
+    2. 自动暂存并生成语义化提交：`git commit -m "feat: [需求简述] (vX.Y.Z)"`；
+    3. 自动同步向远程 `dev` 分支推送最新版本代码 (`git push -u origin dev`)。
+
