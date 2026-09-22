@@ -80,6 +80,13 @@ async function authentication(context) {
   }
 
   const pathname = new URL(context.request.url).pathname;
+  const method = context.request.method;
+
+  // 针对 /api/manage/atlas 和 /api/manage/footprint 的 GET 请求，允许穿透到各自的 handler 中细粒度判定公开性与鉴权
+  if (method === 'GET' && (pathname.startsWith('/api/manage/atlas') || pathname.startsWith('/api/manage/footprint'))) {
+    return context.next();
+  }
+
   const requiredPermission = extractRequiredPermission(pathname);
 
   const result = await authenticate({

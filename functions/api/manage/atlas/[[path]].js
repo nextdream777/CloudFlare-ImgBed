@@ -1,4 +1,5 @@
 import { getDatabase } from '../../../utils/databaseAdapter.js';
+import { authenticate, AUTH_SCOPE } from '../../../utils/auth/authCore.js';
 
 // CORS 跨域响应头
 const corsHeaders = {
@@ -27,6 +28,10 @@ export async function onRequest(context) {
         });
     }
 
+    // 检查管理员身份
+    const authResult = await authenticate({ env, request, authScope: AUTH_SCOPE.ADMIN });
+    const isAdmin = Boolean(authResult && authResult.authorized);
+
     const pathArray = params.path || [];
     const subAction = pathArray[0] || '';
 
@@ -35,7 +40,12 @@ export async function onRequest(context) {
         if (request.method === 'GET') {
             // 列出所有图志
             if (subAction === 'list' || subAction === '') {
-                const atlases = await db.listAtlases();
+                let atlases = await db.listAtlases();
+
+                // 非管理员仅返回公开的图志
+                if (!isAdmin) {
+                    atlases = atlases.filter(a => Boolean(a.is_public));
+                }
                 
                 // 格式化输出，处理自愈封面
                 const formatted = await Promise.all(atlases.map(async (a) => {
@@ -82,6 +92,14 @@ export async function onRequest(context) {
                 });
             }
 
+            // 若为私密图志且非管理员，拒绝访问并返回 401
+            if (!isAdmin && !atlas.is_public) {
+                return new Response(JSON.stringify({ success: false, message: 'Unauthorized. This atlas is private.' }), {
+                    status: 401,
+                    headers: { 'Content-Type': 'application/json', ...corsHeaders }
+                });
+            }
+
             const items = await db.getAtlasItems(atlasId);
             const included = items.filter(i => i.relation_type === 'include').map(i => i.file_id);
             const excluded = items.filter(i => i.relation_type === 'exclude').map(i => i.file_id);
@@ -106,8 +124,15 @@ export async function onRequest(context) {
             });
         }
 
-        // 2. POST 请求 (创建或更新图志)
+        // 2. POST 请求 (创建或更新图志，必须管理员)
         if (request.method === 'POST') {
+            if (!isAdmin) {
+                return new Response(JSON.stringify({ success: false, message: 'Unauthorized. Admin login required.' }), {
+                    status: 401,
+                    headers: { 'Content-Type': 'application/json', ...corsHeaders }
+                });
+            }
+
             const body = await request.json();
             const name = (body.name || '').trim();
             if (!name) {
@@ -123,7 +148,7 @@ export async function onRequest(context) {
                 name: name,
                 description: body.description || '',
                 cover_file_id: body.coverFileId || body.cover_file_id || null,
-                query_rules: body.queryRules || body.query_rules || {},
+                query_rules: body.queryRules || body.query_rules || body.rules || {},
                 sort_order: parseInt(body.sortOrder || body.sort_order, 10) || 0,
                 is_public: Boolean(body.isPublic || body.is_public)
             };
@@ -140,8 +165,15 @@ export async function onRequest(context) {
             });
         }
 
-        // 3. DELETE 请求
+        // 3. DELETE 请求 (必须管理员)
         if (request.method === 'DELETE') {
+            if (!isAdmin) {
+                return new Response(JSON.stringify({ success: false, message: 'Unauthorized. Admin login required.' }), {
+                    status: 401,
+                    headers: { 'Content-Type': 'application/json', ...corsHeaders }
+                });
+            }
+
             const id = url.searchParams.get('id') || subAction;
             if (!id) {
                 return new Response(JSON.stringify({ success: false, message: 'Atlas ID is required' }), {

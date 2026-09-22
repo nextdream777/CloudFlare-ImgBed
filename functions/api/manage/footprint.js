@@ -1,4 +1,5 @@
 import { getDatabase } from '../../utils/databaseAdapter.js';
+import { authenticate, AUTH_SCOPE } from '../../utils/auth/authCore.js';
 
 // CORS 跨域响应头
 const corsHeaders = {
@@ -41,6 +42,28 @@ export async function onRequest(context) {
             status: 500,
             headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
+    }
+
+    // 检查管理员身份
+    const authResult = await authenticate({ env, request, authScope: AUTH_SCOPE.ADMIN });
+    const isAdmin = Boolean(authResult && authResult.authorized);
+
+    // 若非管理员：必须指定具体的 atlasId，且该 atlasId 对应的图志必须是公开的 (is_public = 1)
+    if (!isAdmin) {
+        if (!atlasId || atlasId === 'all') {
+            return new Response(JSON.stringify({ success: false, message: 'Unauthorized. Admin login required to view all footprints.' }), {
+                status: 401,
+                headers: { 'Content-Type': 'application/json', ...corsHeaders }
+            });
+        }
+
+        const atlas = await db.getAtlas(atlasId);
+        if (!atlas || !atlas.is_public) {
+            return new Response(JSON.stringify({ success: false, message: 'Unauthorized. This atlas is private.' }), {
+                status: 401,
+                headers: { 'Content-Type': 'application/json', ...corsHeaders }
+            });
+        }
     }
 
     try {
