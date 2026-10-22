@@ -42,13 +42,21 @@ export async function initializeChunkedUpload(context) {
         // 获取指定的渠道名称
         const channelName = url.searchParams.get('channelName') || '';
 
-        // 提取地理信息、设备信息与游记故事 (若上传表单中有传递)
+        // 提取地理信息、设备信息、拍摄参数与游记故事 (若上传表单中有传递)
         const reqLat = formdata.get('latitude');
         const reqLng = formdata.get('longitude');
+        const reqAlt = formdata.get('altitude');
         const reqLoc = formdata.get('locationName') || formdata.get('location_name');
         const reqDesc = formdata.get('description');
         const reqCamera = formdata.get('camera');
+        const reqLens = formdata.get('lensModel') || formdata.get('lens');
         const reqExifTime = formdata.get('exifTime') || formdata.get('dateTime');
+        const reqExpTime = formdata.get('exposureTime');
+        const reqFNumber = formdata.get('fNumber');
+        const reqIso = formdata.get('iso');
+        const reqFocal = formdata.get('focalLength');
+        const reqFocal35 = formdata.get('focalLength35mm');
+        const reqExpBias = formdata.get('exposureBias');
 
         // 存储上传会话信息
         const sessionInfo = {
@@ -62,10 +70,18 @@ export async function initializeChunkedUpload(context) {
             ipAddress,
             latitude: (reqLat !== null && reqLat !== undefined && !isNaN(parseFloat(reqLat))) ? parseFloat(reqLat) : null,
             longitude: (reqLng !== null && reqLng !== undefined && !isNaN(parseFloat(reqLng))) ? parseFloat(reqLng) : null,
+            altitude: (reqAlt !== null && reqAlt !== undefined && !isNaN(parseFloat(reqAlt))) ? parseFloat(reqAlt) : null,
             locationName: reqLoc ? String(reqLoc).trim() : null,
             description: reqDesc ? String(reqDesc).trim() : null,
             camera: reqCamera ? String(reqCamera).trim() : null,
+            lensModel: reqLens ? String(reqLens).trim() : null,
             exifTime: reqExifTime ? String(reqExifTime).trim() : null,
+            exposureTime: reqExpTime ? String(reqExpTime).trim() : null,
+            fNumber: reqFNumber ? String(reqFNumber).trim() : null,
+            iso: reqIso ? String(reqIso).trim() : null,
+            focalLength: reqFocal ? String(reqFocal).trim() : null,
+            focalLength35mm: reqFocal35 ? String(reqFocal35).trim() : null,
+            exposureBias: reqExpBias ? String(reqExpBias).trim() : null,
             status: 'initialized',
             createdAt: timestamp,
             expiresAt: timestamp + 3600000 // 1小时过期

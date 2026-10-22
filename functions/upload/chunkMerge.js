@@ -177,12 +177,15 @@ async function handleChannelBasedMerge(context, uploadId, totalChunks, originalF
             Tags: []
         };
 
-        // 继承会话中的地理信息与拍摄设备元数据
+        // 继承会话中的地理信息、设备信息与拍摄参数元数据
         if (sessionInfo?.latitude !== null && sessionInfo?.latitude !== undefined) {
             metadata.Latitude = sessionInfo.latitude;
         }
         if (sessionInfo?.longitude !== null && sessionInfo?.longitude !== undefined) {
             metadata.Longitude = sessionInfo.longitude;
+        }
+        if (sessionInfo?.altitude !== null && sessionInfo?.altitude !== undefined) {
+            metadata.Altitude = sessionInfo.altitude;
         }
         if (sessionInfo?.locationName) {
             metadata.LocationName = sessionInfo.locationName;
@@ -193,8 +196,29 @@ async function handleChannelBasedMerge(context, uploadId, totalChunks, originalF
         if (sessionInfo?.camera) {
             metadata.Camera = sessionInfo.camera;
         }
+        if (sessionInfo?.lensModel) {
+            metadata.LensModel = sessionInfo.lensModel;
+        }
         if (sessionInfo?.exifTime) {
             metadata.ExifTime = sessionInfo.exifTime;
+        }
+        if (sessionInfo?.exposureTime) {
+            metadata.ExposureTime = sessionInfo.exposureTime;
+        }
+        if (sessionInfo?.fNumber) {
+            metadata.FNumber = sessionInfo.fNumber;
+        }
+        if (sessionInfo?.iso) {
+            metadata.ISO = sessionInfo.iso;
+        }
+        if (sessionInfo?.focalLength) {
+            metadata.FocalLength = sessionInfo.focalLength;
+        }
+        if (sessionInfo?.focalLength35mm) {
+            metadata.FocalLength35mm = sessionInfo.focalLength35mm;
+        }
+        if (sessionInfo?.exposureBias) {
+            metadata.ExposureBias = sessionInfo.exposureBias;
         }
 
         // 收集所有已上传的分块信息

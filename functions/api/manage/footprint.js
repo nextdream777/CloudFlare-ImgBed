@@ -94,11 +94,17 @@ export async function onRequest(context) {
                     id: id,
                     rawUrl: rawUrl,
                     thumbUrl: thumbUrl,
-                    name: meta.locationName || meta.location_name || '',
-                    description: meta.description || '',
+                    name: meta.LocationName || meta.locationName || meta.location_name || '',
+                    description: meta.Description || meta.description || '',
                     date: meta.TimeStamp || meta.timestamp || 0,
                     dir: meta.Directory || meta.directory || '',
-                    tags: Array.isArray(meta.Tags) ? meta.Tags : []
+                    tags: Array.isArray(meta.Tags) ? meta.Tags : [],
+                    camera: meta.Camera || meta.camera || '',
+                    lensModel: meta.LensModel || meta.lensModel || '',
+                    exposureTime: meta.ExposureTime || meta.exposureTime || '',
+                    fNumber: meta.FNumber || meta.fNumber || '',
+                    iso: meta.ISO || meta.iso || '',
+                    focalLength: meta.FocalLength || meta.focalLength || ''
                 }]
             }), {
                 status: 200,

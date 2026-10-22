@@ -191,19 +191,30 @@ async function processFileUpload(context, formdata = null) {
         metadata.Height = imageDimensions.height;
     }
 
-    // 提取地理信息、设备信息与游记故事 (若上传表单中有传递)
+    // 提取地理信息、设备信息、拍摄参数与游记故事 (若上传表单中有传递)
     const reqLat = formdata.get('latitude');
     const reqLng = formdata.get('longitude');
+    const reqAlt = formdata.get('altitude');
     const reqLoc = formdata.get('locationName') || formdata.get('location_name');
     const reqDesc = formdata.get('description');
     const reqCamera = formdata.get('camera');
+    const reqLens = formdata.get('lensModel') || formdata.get('lens');
     const reqExifTime = formdata.get('exifTime') || formdata.get('dateTime');
+    const reqExpTime = formdata.get('exposureTime');
+    const reqFNumber = formdata.get('fNumber');
+    const reqIso = formdata.get('iso');
+    const reqFocal = formdata.get('focalLength');
+    const reqFocal35 = formdata.get('focalLength35mm');
+    const reqExpBias = formdata.get('exposureBias');
 
     if (reqLat !== null && reqLat !== undefined && !isNaN(parseFloat(reqLat))) {
         metadata.Latitude = parseFloat(reqLat);
     }
     if (reqLng !== null && reqLng !== undefined && !isNaN(parseFloat(reqLng))) {
         metadata.Longitude = parseFloat(reqLng);
+    }
+    if (reqAlt !== null && reqAlt !== undefined && !isNaN(parseFloat(reqAlt))) {
+        metadata.Altitude = parseFloat(reqAlt);
     }
     if (reqLoc) {
         metadata.LocationName = String(reqLoc).trim();
@@ -214,8 +225,29 @@ async function processFileUpload(context, formdata = null) {
     if (reqCamera) {
         metadata.Camera = String(reqCamera).trim();
     }
+    if (reqLens) {
+        metadata.LensModel = String(reqLens).trim();
+    }
     if (reqExifTime) {
         metadata.ExifTime = String(reqExifTime).trim();
+    }
+    if (reqExpTime) {
+        metadata.ExposureTime = String(reqExpTime).trim();
+    }
+    if (reqFNumber) {
+        metadata.FNumber = String(reqFNumber).trim();
+    }
+    if (reqIso) {
+        metadata.ISO = String(reqIso).trim();
+    }
+    if (reqFocal) {
+        metadata.FocalLength = String(reqFocal).trim();
+    }
+    if (reqFocal35) {
+        metadata.FocalLength35mm = String(reqFocal35).trim();
+    }
+    if (reqExpBias) {
+        metadata.ExposureBias = String(reqExpBias).trim();
     }
 
     const fileExt = resolveFileExt(fileName, fileType);
