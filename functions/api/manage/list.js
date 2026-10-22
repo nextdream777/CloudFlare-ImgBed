@@ -33,6 +33,7 @@ export async function onRequest(context) {
     let label = url.searchParams.get('label') || '';
     let fileType = url.searchParams.get('fileType') || '';
     let channelName = url.searchParams.get('channelName') || '';
+    let locationStatus = url.searchParams.get('locationStatus') || '';
 
     // 处理搜索关键字
     if (search) {
@@ -128,6 +129,7 @@ export async function onRequest(context) {
                 channelName: channelNameArray,
                 includeTags: includeTagsArray,
                 excludeTags: excludeTagsArray,
+                locationStatus,
                 countOnly: true
             });
 
@@ -154,6 +156,7 @@ export async function onRequest(context) {
             includeTags: includeTagsArray,
             excludeTags: excludeTagsArray,
             includeSubdirFiles: recursive,
+            locationStatus,
         });
 
         // 索引读取失败，直接从 KV 中获取所有文件记录

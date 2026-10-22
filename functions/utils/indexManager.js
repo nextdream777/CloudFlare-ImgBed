@@ -503,7 +503,8 @@ export async function readIndex(context, options = {}) {
             includeTags = [],
             excludeTags = [],
             countOnly = false,
-            includeSubdirFiles = false
+            includeSubdirFiles = false,
+            locationStatus = ''
         } = options;
 
         // 将参数统一转换为数组形式
@@ -672,6 +673,23 @@ export async function readIndex(context, options = {}) {
                     file.metadata.FileName?.toLowerCase().includes(searchLower) ||
                     file.id.toLowerCase().includes(searchLower);
                 return matchesKeyword;
+            });
+        }
+
+        // 地理坐标过滤 (has: 包含坐标, none: 无坐标)
+        if (locationStatus === 'has') {
+            filteredFiles = filteredFiles.filter(file => {
+                const lat = file.metadata?.latitude;
+                const lng = file.metadata?.longitude;
+                return lat !== undefined && lat !== null && lat !== '' &&
+                       lng !== undefined && lng !== null && lng !== '';
+            });
+        } else if (locationStatus === 'none') {
+            filteredFiles = filteredFiles.filter(file => {
+                const lat = file.metadata?.latitude;
+                const lng = file.metadata?.longitude;
+                return lat === undefined || lat === null || lat === '' ||
+                       lng === undefined || lng === null || lng === '';
             });
         }
 
