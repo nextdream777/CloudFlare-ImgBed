@@ -4,7 +4,7 @@ import { fetchUploadConfig, fetchSecurityConfig, fetchPageConfig } from "../util
 import {
     createResponse, getUploadIp, getIPAddress, resolveFileExt,
     moderateContent, purgeCDNCache, isBlockedUploadIp, buildUniqueFileId, endUpload, getImageDimensions,
-    sanitizeUploadFolder
+    sanitizeUploadFolder, normalizeLocationAddress
 } from "./uploadTools";
 import { getFileTypeCategory, normalizeMimeType, resolveFileType } from "../utils/mimeTypes.js";
 import { initializeChunkedUpload, handleChunkUpload, uploadLargeFileToTelegram, handleCleanupRequest } from "./chunkUpload";
@@ -217,7 +217,7 @@ async function processFileUpload(context, formdata = null) {
         metadata.Altitude = parseFloat(reqAlt);
     }
     if (reqLoc) {
-        metadata.LocationName = String(reqLoc).trim();
+        metadata.LocationName = normalizeLocationAddress(reqLoc);
     }
     if (reqDesc) {
         metadata.Description = String(reqDesc).trim();

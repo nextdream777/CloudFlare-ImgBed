@@ -1,6 +1,6 @@
 import { createS3Client } from '../utils/storage/s3Client.js';
 /* ======= 客户端分块上传处理 ======= */
-import { createResponse, selectConsistentChannel, getUploadIp, getIPAddress, buildUniqueFileId, endUpload } from './uploadTools';
+import { createResponse, selectConsistentChannel, getUploadIp, getIPAddress, buildUniqueFileId, endUpload, normalizeLocationAddress } from './uploadTools';
 import { TelegramAPI } from '../utils/storage/telegramAPI';
 import { DiscordAPI } from '../utils/storage/discordAPI';
 import { CreateMultipartUploadCommand, UploadPartCommand, AbortMultipartUploadCommand } from "@aws-sdk/client-s3";
@@ -71,7 +71,7 @@ export async function initializeChunkedUpload(context) {
             latitude: (reqLat !== null && reqLat !== undefined && !isNaN(parseFloat(reqLat))) ? parseFloat(reqLat) : null,
             longitude: (reqLng !== null && reqLng !== undefined && !isNaN(parseFloat(reqLng))) ? parseFloat(reqLng) : null,
             altitude: (reqAlt !== null && reqAlt !== undefined && !isNaN(parseFloat(reqAlt))) ? parseFloat(reqAlt) : null,
-            locationName: reqLoc ? String(reqLoc).trim() : null,
+            locationName: reqLoc ? normalizeLocationAddress(reqLoc) : null,
             description: reqDesc ? String(reqDesc).trim() : null,
             camera: reqCamera ? String(reqCamera).trim() : null,
             lensModel: reqLens ? String(reqLens).trim() : null,

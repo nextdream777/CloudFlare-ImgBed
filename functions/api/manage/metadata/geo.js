@@ -1,6 +1,7 @@
 import { addFileToIndex } from '../../../utils/indexManager.js';
 import { getDatabase } from '../../../utils/databaseAdapter.js';
 import { purgeCFCache } from '../../../utils/purgeCache.js';
+import { normalizeLocationAddress } from '../../../upload/uploadTools.js';
 
 // CORS 跨域响应头
 const corsHeaders = {
@@ -91,7 +92,8 @@ export async function onRequest(context) {
             lng = null;
         }
 
-        const locationName = body.location_name !== undefined ? (body.location_name ? String(body.location_name).trim() : null) : (body.locationName ? String(body.locationName).trim() : null);
+        const rawLoc = body.location_name !== undefined ? (body.location_name ? String(body.location_name).trim() : null) : (body.locationName ? String(body.locationName).trim() : null);
+        const locationName = rawLoc ? normalizeLocationAddress(rawLoc) : null;
         const description = body.description !== undefined ? (body.description ? String(body.description).trim() : null) : null;
 
         const db = getDatabase(env);

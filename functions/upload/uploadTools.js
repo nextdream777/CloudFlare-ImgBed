@@ -501,3 +501,64 @@ export function selectConsistentChannel(channels, uploadId, loadBalanceEnabled) 
     const index = Math.abs(hash) % channels.length;
     return channels[index];
 }
+
+
+// 规范化逆地理地名格式（去除邮编，国内省·市·区倒序转正序，国外保留国家名称）
+export function normalizeLocationAddress(raw) {
+    if (!raw || typeof raw !== 'string') return '';
+    const trimmed = raw.trim();
+    if (!trimmed.includes(',')) {
+        return trimmed.replace(/\b\d{6}\b/g, '').trim();
+    }
+
+    let tokens = trimmed.split(',').map(s => s.trim()).filter(Boolean);
+    tokens = tokens.filter(t => !/^\d{4,8}$/.test(t) && !/^\d{3}-\d{4}$/.test(t));
+    if (tokens.length === 0) return '';
+
+    const lastToken = tokens[tokens.length - 1];
+    const isChinaEnd = lastToken === '中国' || lastToken === '中华人民共和国' || lastToken === 'China';
+    const firstToken = tokens[0];
+    const isChinaStart = firstToken === '中国' || firstToken === '中华人民共和国' || firstToken === 'China';
+
+    if (isChinaEnd) {
+        tokens.pop();
+        tokens.reverse();
+        const adminParts = [];
+        const detailParts = [];
+        tokens.forEach(t => {
+            if (/(省|自治区|特别行政区)$/.test(t) || ['北京市', '上海市', '天津市', '重庆市'].includes(t)) {
+                if (!adminParts.includes(t)) adminParts.push(t);
+            } else if (/(市|自治州|地区|盟)$/.test(t)) {
+                if (!adminParts.includes(t)) adminParts.push(t);
+            } else if (/(区|县|市|旗)$/.test(t) && adminParts.length < 3) {
+                if (!adminParts.includes(t)) adminParts.push(t);
+            } else {
+                if (!detailParts.includes(t)) detailParts.push(t);
+            }
+        });
+        if (adminParts.length === 0 && tokens.length > 0) {
+            const adminSlice = tokens.slice(0, Math.min(3, tokens.length));
+            const restSlice = tokens.slice(adminSlice.length);
+            return adminSlice.join('·') + (restSlice.length ? ' ' + restSlice.join('·') : '');
+        }
+        const adminStr = adminParts.join('·');
+        const detailStr = detailParts.join('·');
+        if (adminStr && detailStr) return `${adminStr} ${detailStr}`;
+        return adminStr || detailStr;
+    } else if (isChinaStart) {
+        tokens.shift();
+        const adminSlice = tokens.slice(0, Math.min(3, tokens.length));
+        const restSlice = tokens.slice(adminSlice.length);
+        return adminSlice.join('·') + (restSlice.length ? ' ' + restSlice.join('·') : '');
+    } else {
+        const foreignCountries = [
+            '日本', '美国', '法国', '英国', '德国', '韩国', '新加坡', '泰国', '澳大利亚',
+            '加拿大', '俄罗斯', '意大利', '西班牙', '瑞士', '新西兰', '荷兰', '瑞典',
+            'United States', 'Japan', 'France', 'United Kingdom', 'Germany', 'South Korea'
+        ];
+        if (foreignCountries.includes(lastToken) || /^[a-zA-Z\s]+$/.test(lastToken)) {
+            tokens.reverse();
+        }
+        return tokens.slice(0, 4).join(' · ');
+    }
+}
