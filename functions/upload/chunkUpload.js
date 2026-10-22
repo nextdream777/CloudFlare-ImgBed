@@ -42,6 +42,14 @@ export async function initializeChunkedUpload(context) {
         // 获取指定的渠道名称
         const channelName = url.searchParams.get('channelName') || '';
 
+        // 提取地理信息、设备信息与游记故事 (若上传表单中有传递)
+        const reqLat = formdata.get('latitude');
+        const reqLng = formdata.get('longitude');
+        const reqLoc = formdata.get('locationName') || formdata.get('location_name');
+        const reqDesc = formdata.get('description');
+        const reqCamera = formdata.get('camera');
+        const reqExifTime = formdata.get('exifTime') || formdata.get('dateTime');
+
         // 存储上传会话信息
         const sessionInfo = {
             uploadId,
@@ -52,6 +60,12 @@ export async function initializeChunkedUpload(context) {
             channelName,
             uploadIp,
             ipAddress,
+            latitude: (reqLat !== null && reqLat !== undefined && !isNaN(parseFloat(reqLat))) ? parseFloat(reqLat) : null,
+            longitude: (reqLng !== null && reqLng !== undefined && !isNaN(parseFloat(reqLng))) ? parseFloat(reqLng) : null,
+            locationName: reqLoc ? String(reqLoc).trim() : null,
+            description: reqDesc ? String(reqDesc).trim() : null,
+            camera: reqCamera ? String(reqCamera).trim() : null,
+            exifTime: reqExifTime ? String(reqExifTime).trim() : null,
             status: 'initialized',
             createdAt: timestamp,
             expiresAt: timestamp + 3600000 // 1小时过期

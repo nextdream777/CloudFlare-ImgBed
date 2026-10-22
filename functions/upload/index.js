@@ -191,11 +191,13 @@ async function processFileUpload(context, formdata = null) {
         metadata.Height = imageDimensions.height;
     }
 
-    // 提取地理信息与游记故事 (若上传表单中有传递)
+    // 提取地理信息、设备信息与游记故事 (若上传表单中有传递)
     const reqLat = formdata.get('latitude');
     const reqLng = formdata.get('longitude');
     const reqLoc = formdata.get('locationName') || formdata.get('location_name');
     const reqDesc = formdata.get('description');
+    const reqCamera = formdata.get('camera');
+    const reqExifTime = formdata.get('exifTime') || formdata.get('dateTime');
 
     if (reqLat !== null && reqLat !== undefined && !isNaN(parseFloat(reqLat))) {
         metadata.Latitude = parseFloat(reqLat);
@@ -208,6 +210,12 @@ async function processFileUpload(context, formdata = null) {
     }
     if (reqDesc) {
         metadata.Description = String(reqDesc).trim();
+    }
+    if (reqCamera) {
+        metadata.Camera = String(reqCamera).trim();
+    }
+    if (reqExifTime) {
+        metadata.ExifTime = String(reqExifTime).trim();
     }
 
     const fileExt = resolveFileExt(fileName, fileType);

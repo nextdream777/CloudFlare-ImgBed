@@ -70,7 +70,7 @@ export async function handleChunkMerge(context) {
         console.log(`Initial chunk status summary: ${JSON.stringify(initialStatusSummary)}`);
 
         // 开始合并处理
-        return await startMerge(context, uploadId, totalChunks, originalFileName, originalFileType, uploadChannel);
+        return await startMerge(context, uploadId, totalChunks, originalFileName, originalFileType, uploadChannel, sessionInfo);
 
     } catch (error) {
         // 清理失败的multipart uploads
@@ -89,7 +89,7 @@ export async function handleChunkMerge(context) {
 }
 
 // 开始合并处理
-async function startMerge(context, uploadId, totalChunks, originalFileName, originalFileType, uploadChannel) {
+async function startMerge(context, uploadId, totalChunks, originalFileName, originalFileType, uploadChannel, sessionInfo = null) {
     const { env } = context;
 
     try {
@@ -108,7 +108,7 @@ async function startMerge(context, uploadId, totalChunks, originalFileName, orig
         console.log(`Merge status: ${JSON.stringify(mergeStatus)}`);
 
         // 同步执行合并
-        const result = await handleChannelBasedMerge(context, uploadId, totalChunks, originalFileName, originalFileType, uploadChannel);
+        const result = await handleChannelBasedMerge(context, uploadId, totalChunks, originalFileName, originalFileType, uploadChannel, sessionInfo);
 
         if (result.success) {
             // 清理临时分块数据
@@ -154,7 +154,7 @@ async function startMerge(context, uploadId, totalChunks, originalFileName, orig
 }
 
 // 基于渠道的合并处理
-async function handleChannelBasedMerge(context, uploadId, totalChunks, originalFileName, originalFileType, uploadChannel) {
+async function handleChannelBasedMerge(context, uploadId, totalChunks, originalFileName, originalFileType, uploadChannel, sessionInfo = null) {
     const { request, env, url } = context;
 
     try {
@@ -176,6 +176,26 @@ async function handleChannelBasedMerge(context, uploadId, totalChunks, originalF
             Directory: normalizedFolder === '' ? '' : normalizedFolder + '/',
             Tags: []
         };
+
+        // 继承会话中的地理信息与拍摄设备元数据
+        if (sessionInfo?.latitude !== null && sessionInfo?.latitude !== undefined) {
+            metadata.Latitude = sessionInfo.latitude;
+        }
+        if (sessionInfo?.longitude !== null && sessionInfo?.longitude !== undefined) {
+            metadata.Longitude = sessionInfo.longitude;
+        }
+        if (sessionInfo?.locationName) {
+            metadata.LocationName = sessionInfo.locationName;
+        }
+        if (sessionInfo?.description) {
+            metadata.Description = sessionInfo.description;
+        }
+        if (sessionInfo?.camera) {
+            metadata.Camera = sessionInfo.camera;
+        }
+        if (sessionInfo?.exifTime) {
+            metadata.ExifTime = sessionInfo.exifTime;
+        }
 
         // 收集所有已上传的分块信息
         const chunkStatuses = await checkChunkUploadStatuses(env, uploadId, totalChunks);
