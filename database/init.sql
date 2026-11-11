@@ -112,6 +112,9 @@ CREATE INDEX IF NOT EXISTS idx_files_geo ON files(latitude, longitude);
 CREATE INDEX IF NOT EXISTS idx_atlases_sort_order ON atlases(sort_order ASC, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_atlas_items_file_id ON atlas_items(file_id);
 CREATE INDEX IF NOT EXISTS idx_atlas_items_atlas_id ON atlas_items(atlas_id);
+-- 文件有效期：只索引设置了 ExpiresAt 的文件
+CREATE INDEX IF NOT EXISTS idx_files_expires ON files(json_extract(metadata, '$.ExpiresAt'))
+    WHERE json_extract(metadata, '$.ExpiresAt') IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_settings_category ON settings(category);
 
